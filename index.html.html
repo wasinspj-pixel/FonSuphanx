@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>FonSuphan – ฝนสุพรรณบุรี (สด)</title>
+<link href="https://fonts.googleapis.com/css2?family=Mitr:wght@500&family=Sarabun:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f2f7f6;--card:#fff;--ink:#0f2a33;--mut:#5b7480;--line:#d5e3e2;--c0:#e6eeed;--c1:#b9dff0;--c2:#5fb0dc;--c3:#2a6fb8;--c4:#5a2f9a;--accent:#1d6f8f}
+@media (prefers-color-scheme:dark){:root{--bg:#0c1a20;--card:#132a33;--ink:#e6f2f4;--mut:#93b0b9;--line:#24424d;--c0:#1c3540;--c1:#2d6580;--c2:#3f8fc0;--c3:#5b93e0;--c4:#a77be0;--accent:#6cc4e0}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:'Sarabun',system-ui,sans-serif;line-height:1.5}
+main{max-width:760px;margin:0 auto;padding:20px 16px 40px}
+h1{font-family:'Mitr','Sarabun',sans-serif;font-weight:500;font-size:2rem;margin:0}
+.sub{color:var(--mut);margin:2px 0 4px}
+.time{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:14px;font-size:.9rem;color:var(--mut)}
+button{font:inherit;background:var(--accent);color:#fff;border:0;border-radius:8px;padding:5px 14px;cursor:pointer}
+button:focus-visible,.d:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
+.stat,.mapbox,.panel,.row{background:var(--card);border:1px solid var(--line);border-radius:12px}
+.stat{padding:10px 12px}
+.stat b{display:block;font-family:'Mitr',sans-serif;font-weight:500;font-size:1.4rem;line-height:1.2}
+.stat span{color:var(--mut);font-size:.85rem}
+.mapbox{padding:8px}
+svg{display:block;width:100%;height:auto}
+.d{stroke:var(--bg);stroke-width:3;stroke-linejoin:round;cursor:pointer;transition:fill .3s}
+.d.sel{stroke:var(--ink)}
+.lbl,.mm{text-anchor:middle;pointer-events:none;paint-order:stroke;stroke:var(--card);stroke-width:3px;fill:var(--ink)}
+.lbl{font-size:13px;font-weight:600}.mm{font-size:12px}
+.drop{fill:var(--card);opacity:.9;pointer-events:none}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin:10px 4px;font-size:.85rem;color:var(--mut)}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.panel{padding:12px 14px;margin:8px 0 16px}
+.panel h2{font-family:'Mitr',sans-serif;font-weight:500;font-size:1.15rem;margin:0 0 6px}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:6px 14px}
+.grid div span{display:block;color:var(--mut);font-size:.8rem}
+.grid div b{font-size:1.05rem}
+.row{display:grid;grid-template-columns:1fr auto auto auto;gap:4px 12px;align-items:center;padding:8px 12px;margin-bottom:6px;font-size:.92rem;cursor:pointer}
+.row.sel{border-color:var(--accent)}
+.row b{font-variant-numeric:tabular-nums}
+h3{font-family:'Mitr',sans-serif;font-weight:500;font-size:1.05rem;margin:16px 0 8px}
+.note{font-size:.85rem;color:var(--mut);border-left:3px solid var(--accent);padding:4px 12px;margin-top:16px}
+#err{display:none;background:#fdecea;color:#7a1f16;border-radius:8px;padding:8px 12px;margin-bottom:12px;font-size:.9rem}
+</style>
+</head>
+<body>
+<main>
+<h1>FonSuphan</h1>
+<p class="sub">ฝน อุณหภูมิ และลม จังหวัดสุพรรณบุรี แบบเรียลไทม์</p>
+<div class="time"><span id="now"></span><span id="upd">กำลังโหลดข้อมูล…</span><button id="ref">รีเฟรช</button></div>
+<div id="err"></div>
+
+<div class="stats">
+<div class="stat"><b id="sRain">–</b><span>อำเภอที่ฝนตกอยู่ตอนนี้</span></div>
+<div class="stat"><b id="sTemp">–</b><span>อุณหภูมิเฉลี่ย (°C)</span></div>
+<div class="stat"><b id="sMax">–</b><span id="sMaxN">โอกาสฝนสูงสุด</span></div>
+</div>
+
+<div class="mapbox"><svg viewBox="0 0 410 460" role="img" aria-label="แผนที่ฝนรายอำเภอ สุพรรณบุรี" id="map"></svg></div>
+<div class="legend" id="legend"></div>
+
+<div class="panel" id="panel"></div>
+
+<h3>ทุกอำเภอ</h3>
+<div id="list"></div>
+
+<p class="note">ข้อมูลจาก Open-Meteo (แบบจำลองพยากรณ์อากาศ) ณ จุดกลางอำเภอ ไม่ใช่ค่าจากเครื่องวัดฝนหรือเรดาร์ ปริมาณฝนสีบนแผนที่คือฝนสะสมที่คาดว่าจะตกทั้งวันนี้ ส่วน "ฝนตกอยู่ตอนนี้" ดูจากค่าปัจจุบัน แผนที่เป็นภาพแบบย่อ ไม่ใช่ขอบเขตอำเภอจริง ควรใช้ข้อมูลกรมอุตุนิยมวิทยาประกอบการตัดสินใจสำคัญ</p>
+</main>
+<script>
+const D=[
+["เมืองสุพรรณบุรี","300,240 310,190 380,190 370,290 320,320",14.474,100.122],
+["เดิมบางนางบวช","170,20 300,50 310,130 190,140",14.95,100.13],
+["ด่านช้าง","20,40 170,20 190,140 110,170 30,130",14.83,99.68],
+["บางปลาม้า","320,320 370,290 385,380 340,420 310,400",14.39,100.15],
+["ศรีประจันต์","190,140 310,130 310,190 300,240 200,240",14.62,100.15],
+["ดอนเจดีย์","40,210 90,260 200,240 190,330 60,320",14.63,99.98],
+["สองพี่น้อง","200,240 300,240 320,320 310,400 210,430 190,330",14.22,100.11],
+["สามชุก","300,50 385,90 380,190 310,190 310,130",14.76,100.09],
+["อู่ทอง","60,320 190,330 210,430 90,440 30,380",14.37,99.89],
+["หนองหญ้าไซ","30,130 110,170 190,140 200,240 90,260 40,210",14.83,99.9]];
+const L=[["ไม่มีฝน",'--c0'],["เล็กน้อย (<10 มม.)",'--c1'],["ปานกลาง (10–35)",'--c2'],["หนัก (35–90)",'--c3'],["หนักมาก (>90)",'--c4']];
+const lvl=v=>v>90?4:v>=35?3:v>=10?2:v>0?1:0;
+const NS="http://www.w3.org/2000/svg";
+const map=document.getElementById('map'),list=document.getElementById('list');
+const $=id=>document.getElementById(id);
+const compass=d=>["เหนือ","ตอ.เฉียงเหนือ","ตะวันออก","ตอ.เฉียงใต้","ใต้","ตต.เฉียงใต้","ตะวันตก","ตต.เฉียงเหนือ"][Math.round(d/45)%8];
+let data=D.map(()=>null),sel=0;
+$('legend').innerHTML=L.map(l=>`<span><i style="background:var(${l[1]})"></i>${l[0]}</span>`).join('');
+const els=D.map((d,i)=>{
+ const pts=d[1].split(' ').map(p=>p.split(',').map(Number));
+ const cx=pts.reduce((a,p)=>a+p[0],0)/pts.length,cy=pts.reduce((a,p)=>a+p[1],0)/pts.length;
+ const g=document.createElementNS(NS,'g');
+ g.innerHTML=`<polygon class="d" tabindex="0" points="${d[1]}"><title>${d[0]}</title></polygon><text class="lbl" x="${cx}" y="${cy-2}">${d[0]}</text><text class="mm" x="${cx}" y="${cy+14}"></text><g class="rain"></g>`;
+ map.appendChild(g);
+ const poly=g.querySelector('polygon');
+ const pick=()=>{sel=i;render()};
+ poly.addEventListener('click',pick);
+ poly.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();pick()}});
+ const row=document.createElement('div');row.className='row';row.onclick=pick;
+ list.appendChild(row);
+ return {g,poly,row,cx,cy};
+});
+function render(){
+ data.forEach((v,i)=>{
+  const e=els[i];
+  e.poly.classList.toggle('sel',i===sel);e.row.classList.toggle('sel',i===sel);
+  const r=e.g.querySelector('.rain');
+  if(!v){e.poly.style.fill='var(--c0)';e.row.innerHTML=`<span>${D[i][0]}</span><span>–</span><span></span><span></span>`;return}
+  e.poly.style.fill=`var(${L[lvl(v.sum)][1]})`;
+  e.g.querySelector('.mm').textContent=v.temp.toFixed(0)+'° · '+v.prob+'%';
+  r.innerHTML=v.now>0?[-14,0,14].map(dx=>`<path class="drop" d="M${e.cx+dx} ${e.cy-30} q4 6 0 9 q-4 -3 0 -9z"/>`).join(''):'';
+  e.row.innerHTML=`<span>${D[i][0]}${v.now>0?' 🌧':''}</span><b>${v.temp.toFixed(1)}°C</b><b>${v.wind.toFixed(0)} กม./ชม.</b><b>${v.prob}%</b>`;
+ });
+ const v=data[sel];
+ $('panel').innerHTML=v?`<h2>อ.${D[sel][0]}${v.now>0?' · ฝนตกอยู่ตอนนี้':''}</h2><div class="grid">
+ <div><span>อุณหภูมิ</span><b>${v.temp.toFixed(1)} °C</b></div>
+ <div><span>โอกาสฝนตก (ชั่วโมงนี้)</span><b>${v.prob}%</b></div>
+ <div><span>ลม</span><b>${v.wind.toFixed(0)} กม./ชม. จาก${compass(v.dir)}</b></div>
+ <div><span>ฝนตอนนี้</span><b>${v.now.toFixed(1)} มม.</b></div>
+ <div><span>ฝนสะสมวันนี้ (คาดการณ์)</span><b>${v.sum.toFixed(1)} มม.</b></div>
+ <div><span>โอกาสฝนสูงสุดวันนี้</span><b>${v.pmax}%</b></div></div>`:'<h2>รอข้อมูล…</h2>';
+ const ok=data.filter(Boolean);
+ if(ok.length){
+  $('sRain').textContent=ok.filter(v=>v.now>0).length+'/10';
+  $('sTemp').textContent=(ok.reduce((a,v)=>a+v.temp,0)/ok.length).toFixed(1);
+  const m=Math.max(...ok.map(v=>v.prob));
+  $('sMax').textContent=m+'%';
+  $('sMaxN').textContent='โอกาสฝนสูงสุด · '+D[data.findIndex(v=>v&&v.prob===m)][0];
+ }
+}
+async function load(){
+ const u='https://api.open-meteo.com/v1/forecast?latitude='+D.map(d=>d[2]).join(',')+'&longitude='+D.map(d=>d[3]).join(',')+
+ '&current=temperature_2m,precipitation,wind_speed_10m,wind_direction_10m&hourly=precipitation_probability&daily=precipitation_sum,precipitation_probability_max&timezone=Asia%2FBangkok&forecast_days=1&wind_speed_unit=kmh';
+ try{
+  const r=await fetch(u);if(!r.ok)throw new Error(r.status);
+  const j=await r.json(),a=Array.isArray(j)?j:[j];
+  data=a.map(p=>{
+   const h=p.hourly.time.indexOf(p.current.time.slice(0,13)+':00');
+   return {temp:p.current.temperature_2m,now:p.current.precipitation,wind:p.current.wind_speed_10m,dir:p.current.wind_direction_10m,
+    prob:p.hourly.precipitation_probability[h<0?0:h]??0,sum:p.daily.precipitation_sum[0]??0,pmax:p.daily.precipitation_probability_max[0]??0};
+  });
+  $('err').style.display='none';
+  const t=new Date();
+  $('upd').textContent='อัปเดตล่าสุด '+t.toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'})+' น. (ข้อมูล ณ '+a[0].current.time.slice(11)+' น.)';
+ }catch(e){
+  $('err').style.display='block';
+  $('err').textContent='โหลดข้อมูลไม่ได้ ตรวจอินเทอร์เน็ต หรือเปิดไฟล์นี้ในเบราว์เซอร์ปกติ (ไม่ใช่ในหน้าแสดงตัวอย่างของแชท)';
+  $('upd').textContent='ยังไม่มีข้อมูล';
+ }
+ render();
+}
+function tick(){$('now').textContent=new Date().toLocaleString('th-TH',{dateStyle:'long',timeStyle:'medium'})}
+tick();setInterval(tick,1000);
+$('ref').onclick=load;
+load();setInterval(load,600000);
+</script>
+</body>
+</html>
